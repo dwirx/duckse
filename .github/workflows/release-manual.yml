@@ -1,17 +1,14 @@
-name: Release
+name: Release Manual
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag release (contoh: v0.1.1). Kosong = ambil dari pyproject version.'
-        required: false
+        description: 'Tag release (contoh: v0.1.1)'
+        required: true
         type: string
       prerelease:
-        description: 'Tandai release sebagai prerelease'
+        description: 'Tandai sebagai prerelease'
         required: false
         default: false
         type: boolean
@@ -20,44 +17,7 @@ permissions:
   contents: write
 
 jobs:
-  resolve-version:
-    runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.pick.outputs.tag }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Pick release tag
-        id: pick
-        shell: bash
-        env:
-          INPUT_TAG: ${{ github.event.inputs.tag }}
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            tag="${GITHUB_REF#refs/tags/}"
-          elif [[ -n "${INPUT_TAG:-}" ]]; then
-            tag="${INPUT_TAG}"
-          else
-            tag="v$(python - <<'PY'
-import tomllib
-from pathlib import Path
-with Path('pyproject.toml').open('rb') as f:
-    data = tomllib.load(f)
-print(data['project']['version'])
-PY
-)"
-          fi
-
-          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.].*)?$ ]]; then
-            echo "Tag '$tag' tidak valid. Gunakan format vMAJOR.MINOR.PATCH" >&2
-            exit 1
-          fi
-
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-
-  build:
-    needs: resolve-version
+  build-and-release:
     strategy:
       fail-fast: false
       matrix:
@@ -113,28 +73,12 @@ PY
         shell: pwsh
         run: Compress-Archive -Path "dist/${{ matrix.binary_name }}" -DestinationPath "$env:ASSET_NAME" -Force
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ASSET_NAME }}
-          path: ${{ env.ASSET_NAME }}
-
-  release:
-    needs: [resolve-version, build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: release-assets
-          merge-multiple: true
-
-      - name: Publish GitHub release
+      - name: Upload release asset
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.resolve-version.outputs.tag }}
+          tag_name: ${{ github.event.inputs.tag }}
           target_commitish: ${{ github.sha }}
-          files: release-assets/*
+          files: ${{ env.ASSET_NAME }}
           generate_release_notes: true
           prerelease: ${{ github.event.inputs.prerelease == 'true' }}
           overwrite_files: true

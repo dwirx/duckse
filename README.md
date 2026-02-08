@@ -169,7 +169,9 @@ Contoh pakai binary:
 
 ## Rilis Otomatis
 
-Workflow GitHub Actions ada di `.github/workflows/release.yml`.
+Workflow GitHub Actions ada di:
+- `.github/workflows/release.yml` (otomatis via tag + bisa manual)
+- `.github/workflows/release-manual.yml` (manual-only, tombol Run workflow)
 Rilis dibuat otomatis saat push tag dengan prefix `v`, contoh:
 
 ```bash
@@ -177,9 +179,10 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-Atau jalankan manual dari tab **Actions** (`workflow_dispatch`):
+Atau jalankan manual dari tab **Actions**:
 
-- isi `tag` (contoh `v0.1.1`), atau kosongkan untuk ambil `version` dari `pyproject.toml`
+- pilih workflow **Release Manual**
+- isi `tag` (contoh `v0.1.1`)
 - set `prerelease=true` jika ingin rilis pre-release
 
 Asset release yang dihasilkan:
