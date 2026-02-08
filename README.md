@@ -170,7 +170,7 @@ Contoh pakai binary:
 ## Rilis Otomatis
 
 Workflow GitHub Actions ada di:
-- `.github/workflows/release.yml` (otomatis via tag + bisa manual)
+- `.github/workflows/release.yml` (otomatis saat push tag `v*`)
 - `.github/workflows/release-manual.yml` (manual-only, tombol Run workflow)
 Rilis dibuat otomatis saat push tag dengan prefix `v`, contoh:
 
@@ -179,7 +179,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-Atau jalankan manual dari tab **Actions**:
+Untuk rilis manual dari tab **Actions**:
 
 - pilih workflow **Release Manual**
 - isi `tag` (contoh `v0.1.1`)
