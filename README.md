@@ -44,6 +44,40 @@ curl -sSL https://raw.githubusercontent.com/dwirx/duckse/main/scripts/install.sh
 
 ## Penggunaan Dasar
 
+### Penggunaan `duckse` (Binary)
+
+Cek binary sudah terpasang:
+
+```bash
+duckse --help
+```
+
+Contoh paling umum:
+
+```bash
+duckse "beritakan di indonesia hari ini" --max-results 5
+```
+
+Contoh output JSON:
+
+```bash
+duckse "beritakan di indonesia hari ini" --json
+```
+
+Contoh tampilkan URL final:
+
+```bash
+duckse "beritakan di indonesia hari ini" --expand-url --max-results 5
+```
+
+Jika perintah `duckse` belum dikenali setelah install script, tambahkan path install ke `PATH`:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+### Penggunaan Development (`uv`)
+
 Text search (default):
 
 ```bash
@@ -136,7 +170,13 @@ Berita Indonesia + URL final:
 uv run python main.py "beritakan di indonesia hari ini" --expand-url --max-results 5
 ```
 
-Pakai proxy:
+Pakai proxy (binary):
+
+```bash
+duckse "berita indonesia" --type news --proxy socks5://127.0.0.1:9150 --timeout 10
+```
+
+Pakai proxy (development):
 
 ```bash
 uv run python main.py "berita indonesia" --type news --proxy socks5://127.0.0.1:9150 --timeout 10
@@ -148,7 +188,7 @@ uv run python main.py "berita indonesia" --type news --proxy socks5://127.0.0.1:
 uv run pytest -q
 ```
 
-## Build Single Binary (`duckse`)
+## Build Binary (`duckse`)
 
 Build:
 
@@ -161,7 +201,7 @@ Output:
 - `dist/duckse` (Linux/macOS)
 - `dist/duckse.exe` (Windows, jika build di Windows)
 
-Contoh pakai binary:
+Contoh pakai binary hasil build lokal:
 
 ```bash
 ./dist/duckse "open source ai" --type text --max-results 3
