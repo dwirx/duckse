@@ -28,6 +28,20 @@ Untuk tooling dev (mis. PyInstaller):
 uv sync --all-groups
 ```
 
+### Install Cepat dari GitHub Release
+
+Install versi terbaru (Linux/macOS):
+
+```bash
+curl -sSL https://raw.githubusercontent.com/dwirx/duckse/main/scripts/install.sh | bash
+```
+
+Install versi tertentu:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/dwirx/duckse/main/scripts/install.sh | bash -s -- v0.1.0
+```
+
 ## Penggunaan Dasar
 
 Text search (default):
@@ -152,3 +166,18 @@ Contoh pakai binary:
 ```bash
 ./dist/duckse "open source ai" --type text --max-results 3
 ```
+
+## Rilis Otomatis
+
+Workflow GitHub Actions ada di `.github/workflows/release.yml`.
+Rilis dibuat otomatis saat push tag dengan prefix `v`, contoh:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Asset release yang dihasilkan:
+- `duckse-linux-x86_64.tar.gz`
+- `duckse-macos-x86_64.tar.gz`
+- `duckse-windows-x86_64.zip`

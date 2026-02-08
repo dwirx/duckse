@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            archive_ext: tar.gz
+            binary_name: duckse
+          - os: macos-13
+            platform: macos
+            archive_ext: tar.gz
+            binary_name: duckse
+          - os: windows-latest
+            platform: windows
+            archive_ext: zip
+            binary_name: duckse.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      - name: Run tests
+        run: uv run pytest -q
+
+      - name: Build binary (Unix)
+        if: runner.os != 'Windows'
+        run: uv run pyinstaller --onefile --name duckse main.py
+
+      - name: Build binary (Windows)
+        if: runner.os == 'Windows'
+        run: uv run pyinstaller --onefile --name duckse main.py
+
+      - name: Prepare archive name
+        shell: bash
+        run: |
+          arch="x86_64"
+          echo "ASSET_NAME=duckse-${{ matrix.platform }}-${arch}.${{ matrix.archive_ext }}" >> "$GITHUB_ENV"
+
+      - name: Package binary (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: tar -czf "$ASSET_NAME" -C dist "${{ matrix.binary_name }}"
+
+      - name: Package binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: Compress-Archive -Path "dist/${{ matrix.binary_name }}" -DestinationPath "$env:ASSET_NAME" -Force
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ASSET_NAME }}
+          generate_release_notes: true
+          overwrite_files: true
