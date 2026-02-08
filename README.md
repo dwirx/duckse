@@ -1,36 +1,20 @@
 # ducksearch
 
-`ducksearch` adalah CLI metasearch berbasis [`ddgs`](https://pypi.org/project/ddgs/) untuk mencari `text`, `images`, `videos`, `news`, dan `books` dari beberapa backend.
+`ducksearch` adalah CLI metasearch berbasis `ddgs` dengan binary utama `duckse`.
+Selain search (`text/images/videos/news/books`), `duckse` juga punya command native Firecrawl untuk `search`, `scrape`, `crawl`, dan alur hybrid `search-scrape`.
 
 ## Fitur Utama
 
-- Satu CLI untuk 5 tipe pencarian: `text`, `images`, `videos`, `news`, `books`
-- Output default yang rapi untuk dibaca manusia
-- Mode JSON mentah dengan `--json`
-- Opsi URL final (setelah redirect) dengan `--expand-url`
-- Auto-intent Indonesia: query seperti `"beritakan di indonesia hari ini"` otomatis diarahkan ke `news` + `region id-id` + `timelimit d`
-- Build single binary `duckse`
-
-## Prasyarat
-
-- Python `>= 3.10` (sesuai `pyproject.toml`)
-- [`uv`](https://docs.astral.sh/uv/)
+- Satu binary: `duckse`
+- DDGS metasearch dengan output rapi dan JSON
+- Auto-intent Indonesia (`"beritakan di indonesia hari ini"` -> `news`, `id-id`, `timelimit=d`)
+- Resolve final URL (`--expand-url`)
+- Firecrawl native namespace: `duckse firecrawl ...`
+- Build single binary untuk distribusi
 
 ## Instalasi
 
-```bash
-uv sync
-```
-
-Untuk tooling dev (mis. PyInstaller):
-
-```bash
-uv sync --all-groups
-```
-
-### Install Cepat dari GitHub Release
-
-Install versi terbaru (Linux/macOS):
+### 1. Install cepat dari GitHub Release
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/dwirx/duckse/main/scripts/install.sh | bash
@@ -42,79 +26,30 @@ Install versi tertentu:
 curl -sSL https://raw.githubusercontent.com/dwirx/duckse/main/scripts/install.sh | bash -s -- v0.1.0
 ```
 
-## Penggunaan Dasar
-
-### Penggunaan `duckse` (Binary)
-
-Cek binary sudah terpasang:
+### 2. Verifikasi binary
 
 ```bash
 duckse --help
 ```
 
-Contoh paling umum:
-
-```bash
-duckse "beritakan di indonesia hari ini" --max-results 5
-```
-
-Contoh output JSON:
-
-```bash
-duckse "beritakan di indonesia hari ini" --json
-```
-
-Contoh tampilkan URL final:
-
-```bash
-duckse "beritakan di indonesia hari ini" --expand-url --max-results 5
-```
-
-Jika perintah `duckse` belum dikenali setelah install script, tambahkan path install ke `PATH`:
+Jika command belum dikenali:
 
 ```bash
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-### Referensi Cepat `duckse`
+## Penggunaan `duckse`
 
-Format umum:
-
-```bash
-duckse "<query>" [opsi]
-```
-
-Contoh cepat:
+### Search umum
 
 ```bash
+duckse "open source ai"
 duckse "beritakan di indonesia hari ini" --max-results 5
 duckse "beritakan di indonesia hari ini" --json
 duckse "beritakan di indonesia hari ini" --expand-url --max-results 5
-duckse "butterfly" --type images --max-results 10
-duckse "sea wolf jack london" --type books --backend annasarchive
 ```
 
-### Penggunaan Development (`uv`)
-
-Text search (default):
-
-```bash
-uv run python main.py "open source ai"
-```
-
-Berita Indonesia hari ini (auto-intent):
-
-```bash
-uv run python main.py "beritakan di indonesia hari ini" --max-results 5
-```
-
-Output JSON mentah:
-
-```bash
-uv run python main.py "beritakan di indonesia hari ini" --json
-```
-
-## Tipe Search dan Backend
+### Tipe search dan backend valid
 
 - `text`: `bing, brave, duckduckgo, google, grokipedia, mojeek, yandex, yahoo, wikipedia, auto`
 - `images`: `duckduckgo, auto`
@@ -122,124 +57,80 @@ uv run python main.py "beritakan di indonesia hari ini" --json
 - `news`: `bing, duckduckgo, yahoo, auto`
 - `books`: `annasarchive, auto`
 
-### Cara Pakai per Tipe Search
-
-`text` (backend: `bing, brave, duckduckgo, google, grokipedia, mojeek, yandex, yahoo, wikipedia, auto`)
+Contoh per tipe:
 
 ```bash
 duckse "open source ai" --type text --backend google --max-results 5
-```
-
-`images` (backend: `duckduckgo, auto`)
-
-```bash
 duckse "butterfly" --type images --backend duckduckgo --color Monochrome --max-results 10
-```
-
-`videos` (backend: `duckduckgo, auto`)
-
-```bash
 duckse "cars" --type videos --backend duckduckgo --resolution high --duration medium
-```
-
-`news` (backend: `bing, duckduckgo, yahoo, auto`)
-
-```bash
 duckse "berita indonesia hari ini" --type news --backend bing --timelimit d --max-results 5
-```
-
-`books` (backend: `annasarchive, auto`)
-
-```bash
 duckse "sea wolf jack london" --type books --backend annasarchive --max-results 5
 ```
 
-Catatan:
-- Jika tidak mengisi `--type`, default adalah `text`.
-- Query natural seperti `beritakan di indonesia hari ini` akan otomatis diarahkan ke `news` + `region id-id` + `timelimit d`.
-
-## Opsi CLI
-
-Opsi umum:
+### Opsi CLI utama
 
 - `--type`: `text|images|videos|news|books`
 - `--region`: contoh `us-en`, `id-id`
 - `--safesearch`: `on|moderate|off`
 - `--timelimit`: `d|w|m|y`
-- `--max-results`: jumlah hasil
-- `--page`: halaman
-- `--backend`: backend tunggal atau dipisah koma
-- `--expand-url`: tampilkan URL final hasil redirect
-- `--json`: output JSON mentah
-- `--proxy`: proxy `http/https/socks5`
-- `--timeout`: timeout request (detik, default `5`)
-- `--verify`: `true`, `false`, atau path file PEM
+- `--max-results`, `--page`, `--backend`
+- `--expand-url`, `--json`
+- `--proxy`, `--timeout`, `--verify`
 
-Khusus images:
-
+Images only:
 - `--size`, `--color`, `--type-image`, `--layout`, `--license-image`
 
-Khusus videos:
-
+Videos only:
 - `--resolution`, `--duration`, `--license-videos`
 
-Contoh kombinasi opsi umum:
+### Validasi otomatis
 
-```bash
-duckse "ai regulation" --type news --region us-en --timelimit d --backend bing --max-results 5
-```
-
-## Validasi Otomatis
-
-CLI akan menolak kombinasi opsi yang tidak sesuai:
-
-- `images/videos` hanya backend `duckduckgo` atau `auto`
-- `news` backend: `bing|duckduckgo|yahoo|auto`
-- `books` backend: `annasarchive|auto`
-- `timelimit=y` valid untuk `text/images`, tidak valid untuk `news/videos`
-
-Contoh error validasi:
+`duckse` akan menolak kombinasi opsi yang tidak valid.
+Contoh:
 
 ```bash
 duckse "butterfly" --type images --backend bing
+# -> Backend 'bing' tidak valid untuk 'images'. Gunakan: auto,duckduckgo
 ```
 
-## Contoh Lanjutan
+## Firecrawl Native di `duckse`
 
-Image search:
+Set API key dulu:
 
 ```bash
-uv run python main.py "butterfly" --type images --color Monochrome --layout Wide --max-results 10
+export FIRECRAWL_API_KEY=fc-xxxxxxxxxx
 ```
 
-Video search:
+### Firecrawl search
 
 ```bash
-uv run python main.py "cars" --type videos --resolution high --duration medium --timelimit w
+duckse firecrawl search "ai regulation" --limit 10 --json
 ```
 
-Books search:
+### Firecrawl scrape
 
 ```bash
-uv run python main.py "sea wolf jack london" --type books --backend annasarchive
+duckse firecrawl scrape "https://example.com" --json
 ```
 
-Berita Indonesia + URL final:
+### Firecrawl crawl
 
 ```bash
-uv run python main.py "beritakan di indonesia hari ini" --expand-url --max-results 5
+duckse firecrawl crawl "https://example.com" --max-pages 30 --wait --json
 ```
 
-Pakai proxy (binary):
+### Hybrid: duckse search -> firecrawl scrape
 
 ```bash
-duckse "berita indonesia" --type news --proxy socks5://127.0.0.1:9150 --timeout 10
+duckse firecrawl search-scrape "berita indonesia hari ini" --type news --max-results 10 --scrape-limit 5 --region id-id --timelimit d --backend bing
 ```
 
-Pakai proxy (development):
+## Development Mode (tanpa install global)
 
 ```bash
-uv run python main.py "berita indonesia" --type news --proxy socks5://127.0.0.1:9150 --timeout 10
+uv sync
+uv run python main.py "open source ai"
+uv run python main.py firecrawl search "ai regulation" --limit 10 --json
 ```
 
 ## Testing
@@ -248,44 +139,32 @@ uv run python main.py "berita indonesia" --type news --proxy socks5://127.0.0.1:
 uv run pytest -q
 ```
 
-## Build Binary (`duckse`)
-
-Build:
+## Build Binary
 
 ```bash
+uv sync --all-groups
 make build-binary
 ```
 
-Output:
-
+Output binary:
 - `dist/duckse` (Linux/macOS)
-- `dist/duckse.exe` (Windows, jika build di Windows)
+- `dist/duckse.exe` (Windows jika build di Windows)
 
-Contoh pakai binary hasil build lokal:
+Contoh:
 
 ```bash
 ./dist/duckse "open source ai" --type text --max-results 3
+./dist/duckse firecrawl search "ai regulation" --limit 5 --json
 ```
 
-## Rilis Otomatis
+## Release Workflow
 
-Workflow GitHub Actions ada di:
-- `.github/workflows/release.yml` (otomatis saat push tag `v*`)
-- `.github/workflows/release-manual.yml` (manual-only, tombol Run workflow)
-Rilis dibuat otomatis saat push tag dengan prefix `v`, contoh:
+- `.github/workflows/release.yml`: release otomatis saat push tag `v*`
+- `.github/workflows/release-manual.yml`: release manual dari GitHub Actions
+
+Contoh release tag:
 
 ```bash
 git tag v0.1.0
 git push origin v0.1.0
 ```
-
-Untuk rilis manual dari tab **Actions**:
-
-- pilih workflow **Release Manual**
-- isi `tag` (contoh `v0.1.1`)
-- set `prerelease=true` jika ingin rilis pre-release
-
-Asset release yang dihasilkan:
-- `duckse-linux-x86_64.tar.gz`
-- `duckse-macos-x86_64.tar.gz`
-- `duckse-windows-x86_64.zip`

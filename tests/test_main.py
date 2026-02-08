@@ -224,3 +224,27 @@ def test_search_rejects_invalid_timelimit_for_news():
         assert "Timelimit" in str(exc)
     else:
         raise AssertionError("Expected ValueError for invalid timelimit")
+
+
+def test_run_routes_firecrawl_namespace():
+    captured = {}
+
+    def fake_firecrawl(argv):
+        captured["argv"] = argv
+        return 0
+
+    exit_code = main.run(
+        ["firecrawl", "search", "open source ai", "--json"],
+        firecrawl_run_fn=fake_firecrawl,
+    )
+
+    assert exit_code == 0
+    assert captured["argv"] == ["search", "open source ai", "--json"]
+
+
+def test_run_firecrawl_missing_subcommand_returns_error(capsys):
+    exit_code = main.run_firecrawl([])
+
+    assert exit_code == 2
+    err = capsys.readouterr().err
+    assert "subcommand" in err.lower()

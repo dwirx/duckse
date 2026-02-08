@@ -1,167 +1,103 @@
 ---
 name: web-search
-description: This skill should be used when users need to search the web for information, find current content, look up news articles, search for images, or find videos. It uses duckse (DDGS-based CLI) to return clean results in pretty text or JSON.
+description: Use when users need web search, current news lookup, image/video discovery, or web extraction workflows. Uses duckse for DDGS metasearch and native Firecrawl commands for scraping/crawling.
 ---
 
-# Web Search (duckse)
+# Web Search (duckse + Firecrawl)
 
 ## Overview
 
-Gunakan `duckse` untuk metasearch web berbasis DDGS. Skill ini mendukung:
-- `text`, `news`, `images`, `videos`, `books`
-- filter waktu, region, safe search, backend
-- output rapi (default) atau JSON (`--json`)
-- URL final via redirect (`--expand-url`)
+Skill ini memakai `duckse` sebagai satu pintu untuk:
+- metasearch DDGS (`text`, `images`, `videos`, `news`, `books`)
+- output human-readable atau JSON
+- resolusi URL final (`--expand-url`)
+- scraping/crawling via Firecrawl native command (`duckse firecrawl ...`)
 
-## When to Use This Skill
-
-Gunakan skill ini saat user meminta:
-- pencarian web umum
-- berita terbaru/topik tertentu
-- pencarian gambar/video
-- riset cepat dengan sumber URL
-- fact-checking berbasis hasil web
+Gunakan skill ini untuk riset, fact-checking, monitoring berita, atau pengambilan konten web.
 
 ## Prerequisites
 
-Pastikan `duckse` tersedia:
+Pastikan binary tersedia:
 
 ```bash
 duckse --help
 ```
 
-Jika belum ada, install:
+Install cepat (Linux/macOS):
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/dwirx/duckse/main/scripts/install.sh | bash
 ```
 
-## Core Commands
-
-### 1. Basic Web Search
+Untuk fitur Firecrawl, set API key:
 
 ```bash
-duckse "<query>"
+export FIRECRAWL_API_KEY=fc-xxxxxxxxxx
 ```
 
-Contoh:
+## DDGS Search (duckse)
+
+### Basic
 
 ```bash
 duckse "python asyncio tutorial"
 ```
 
-### 2. Limit Results
+### News + Time Filter
 
 ```bash
-duckse "<query>" --max-results <N>
+duckse "artificial intelligence" --type news --timelimit w --max-results 15
 ```
 
-Contoh:
+### Images
 
 ```bash
-duckse "machine learning frameworks" --max-results 20
+duckse "butterfly" --type images --color Monochrome --layout Wide --max-results 10
 ```
 
-### 3. Time Filter
+### Videos
 
 ```bash
-duckse "<query>" --timelimit <d|w|m|y>
+duckse "python tutorial" --type videos --resolution high --duration medium
 ```
 
-Contoh:
+### Books
 
 ```bash
-duckse "artificial intelligence news" --type news --timelimit w
+duckse "sea wolf jack london" --type books --backend annasarchive
 ```
 
-### 4. News Search
+### JSON + Final URL
 
 ```bash
-duckse "<query>" --type news
-```
-
-Contoh:
-
-```bash
-duckse "climate change" --type news --timelimit w --max-results 15
-```
-
-### 5. Image Search
-
-```bash
-duckse "<query>" --type images
-```
-
-Contoh:
-
-```bash
-duckse "sunset over mountains" --type images --max-results 20
-```
-
-Filter image:
-
-```bash
-duckse "landscape photos" --type images --size Large
-duckse "abstract art" --type images --color Blue
-duckse "icons" --type images --type-image transparent
-duckse "wallpapers" --type images --layout Wide
-```
-
-### 6. Video Search
-
-```bash
-duckse "<query>" --type videos
-```
-
-Contoh:
-
-```bash
-duckse "python tutorial" --type videos --max-results 15
-```
-
-Filter video:
-
-```bash
-duckse "cooking recipes" --type videos --duration short
-duckse "documentary" --type videos --resolution high
-```
-
-### 7. Books Search
-
-```bash
-duckse "<query>" --type books --backend annasarchive
-```
-
-Contoh:
-
-```bash
-duckse "sea wolf jack london" --type books --max-results 10
-```
-
-### 8. Region and SafeSearch
-
-```bash
-duckse "<query>" --region us-en --safesearch moderate
-```
-
-Contoh:
-
-```bash
-duckse "local news" --type news --region us-en --safesearch on
-```
-
-### 9. JSON and Final URL
-
-JSON output:
-
-```bash
-duckse "quantum computing" --json
-```
-
-Resolve final URL:
-
-```bash
+duckse "beritakan di indonesia hari ini" --json
 duckse "beritakan di indonesia hari ini" --expand-url --max-results 5
+```
+
+## Firecrawl Native (duckse)
+
+### Search
+
+```bash
+duckse firecrawl search "ai regulation" --limit 10 --json
+```
+
+### Scrape Single Page
+
+```bash
+duckse firecrawl scrape "https://example.com" --json
+```
+
+### Crawl Site
+
+```bash
+duckse firecrawl crawl "https://example.com" --max-pages 30 --wait --json
+```
+
+### Hybrid: duckse search -> firecrawl scrape
+
+```bash
+duckse firecrawl search-scrape "berita indonesia hari ini" --type news --max-results 10 --scrape-limit 5 --region id-id --timelimit d --backend bing
 ```
 
 ## Valid Backends by Type
@@ -171,28 +107,6 @@ duckse "beritakan di indonesia hari ini" --expand-url --max-results 5
 - `videos`: `duckduckgo, auto`
 - `news`: `bing, duckduckgo, yahoo, auto`
 - `books`: `annasarchive, auto`
-
-## Common Usage Patterns
-
-### Research Topic
-
-```bash
-duckse "machine learning basics" --max-results 15
-duckse "machine learning" --type news --timelimit m --max-results 15
-duckse "machine learning tutorial" --type videos --max-results 10
-```
-
-### Current Events Monitoring
-
-```bash
-duckse "climate summit" --type news --timelimit d --max-results 20
-```
-
-### Fact-Checking
-
-```bash
-duckse "specific claim to verify" --type news --timelimit w --max-results 20 --expand-url
-```
 
 ## Quick Reference
 
@@ -204,38 +118,40 @@ duckse "<query>" [options]
 
 Essential options:
 - `--type` (`text|images|videos|news|books`)
-- `--max-results`
-- `--timelimit` (`d|w|m|y`)
-- `--region`
-- `--safesearch` (`on|moderate|off`)
-- `--backend`
-- `--json`
-- `--expand-url`
+- `--max-results`, `--timelimit`, `--region`, `--backend`
+- `--json`, `--expand-url`
 - `--proxy`, `--timeout`, `--verify`
+
+Firecrawl namespace:
+
+```bash
+duckse firecrawl <search|scrape|crawl|search-scrape> [options]
+```
 
 ## Best Practices
 
-1. Gunakan query spesifik
-2. Pakai `--timelimit` untuk informasi terbaru
-3. Pakai `--expand-url` jika butuh URL final
-4. Gunakan `--json` untuk otomasi/pipeline
-5. Sesuaikan `--max-results` (mulai 10-20)
+1. Pakai query spesifik
+2. Gunakan `--timelimit` untuk data terbaru
+3. Pakai `--json` untuk otomasi
+4. Pakai `--expand-url` jika butuh URL final
+5. Cek validasi backend sesuai tipe
 
 ## Troubleshooting
 
 - `duckse: command not found`
   - tambahkan PATH: `export PATH="$HOME/.local/bin:$PATH"`
+- `FIRECRAWL_API_KEY belum diset`
+  - export API key sebelum `duckse firecrawl ...`
 - backend tidak valid
-  - sesuaikan dengan daftar backend per type
-- hasil kosong
-  - longgarkan query atau hapus filter waktu
-- timeout/network
-  - ulangi, tambah `--timeout`, atau gunakan `--proxy`
+  - sesuaikan dengan daftar backend per tipe
+- hasil kosong/timeout
+  - longgarkan query, ubah filter waktu, tambah `--timeout`, atau pakai `--proxy`
 
 ## Development Fallback
 
-Jika sedang develop lokal tanpa binary terpasang global:
+Jika binary belum diinstall global:
 
 ```bash
-uv run python main.py "<query>" [opsi yang sama]
+uv run python main.py "<query>" [opsi]
+uv run python main.py firecrawl <subcommand> [opsi]
 ```

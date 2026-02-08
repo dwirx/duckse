@@ -1,9 +1,12 @@
 import argparse
 import json
+import os
 import re
+import sys
+import time
 from collections.abc import Callable
 from typing import Any
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
@@ -11,6 +14,7 @@ from ddgs import DDGS
 
 
 SearchFn = Callable[..., list[dict[str, Any]]]
+FirecrawlRunFn = Callable[[list[str]], int]
 SEARCH_BACKENDS: dict[str, set[str]] = {
     "text": {
         "auto",
@@ -223,7 +227,217 @@ def search(
     raise ValueError(f"Unsupported search type: {search_type}")
 
 
-def run(argv: list[str] | None = None, search_fn: SearchFn = search) -> int:
+def _firecrawl_api_key() -> str:
+    api_key = os.environ.get("FIRECRAWL_API_KEY")
+    if not api_key:
+        raise ValueError("FIRECRAWL_API_KEY belum diset")
+    return api_key
+
+
+def _firecrawl_request(
+    *,
+    method: str,
+    path: str,
+    api_key: str,
+    payload: dict[str, Any] | None = None,
+    timeout: int = 60,
+) -> dict[str, Any]:
+    base_url = "https://api.firecrawl.dev/v1"
+    url = f"{base_url}{path}"
+    data = json.dumps(payload).encode() if payload is not None else None
+    req = Request(
+        url,
+        data=data,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method=method,
+    )
+    try:
+        with urlopen(req, timeout=timeout) as resp:  # noqa: S310
+            return json.loads(resp.read().decode())
+    except HTTPError as exc:
+        body = exc.read().decode(errors="ignore")
+        raise ValueError(f"Firecrawl API error {exc.code}: {body or exc.reason}") from exc
+    except URLError as exc:
+        raise ValueError(f"Firecrawl API network error: {exc}") from exc
+
+
+def firecrawl_search(query: str, limit: int, lang: str, country: str, api_key: str) -> dict[str, Any]:
+    payload = {"query": query, "limit": limit, "lang": lang, "country": country}
+    return _firecrawl_request(method="POST", path="/search", payload=payload, api_key=api_key)
+
+
+def firecrawl_scrape(url: str, formats: list[str], only_main: bool, api_key: str) -> dict[str, Any]:
+    payload = {"url": url, "formats": formats, "onlyMainContent": only_main}
+    return _firecrawl_request(method="POST", path="/scrape", payload=payload, api_key=api_key)
+
+
+def firecrawl_start_crawl(url: str, limit: int, api_key: str) -> dict[str, Any]:
+    payload = {
+        "url": url,
+        "limit": limit,
+        "scrapeOptions": {"formats": ["markdown"], "onlyMainContent": True},
+    }
+    return _firecrawl_request(method="POST", path="/crawl", payload=payload, api_key=api_key)
+
+
+def firecrawl_check_crawl(job_id: str, api_key: str) -> dict[str, Any]:
+    return _firecrawl_request(method="GET", path=f"/crawl/{job_id}", api_key=api_key)
+
+
+def run_firecrawl(argv: list[str]) -> int:
+    parser = argparse.ArgumentParser(description="Firecrawl native commands di duckse")
+    subparsers = parser.add_subparsers(dest="subcommand", required=True)
+
+    search_parser = subparsers.add_parser("search", help="Firecrawl web search")
+    search_parser.add_argument("query")
+    search_parser.add_argument("--limit", type=int, default=10)
+    search_parser.add_argument("--lang", default="en")
+    search_parser.add_argument("--country", default="us")
+    search_parser.add_argument("--json", action="store_true")
+
+    scrape_parser = subparsers.add_parser("scrape", help="Firecrawl scrape single URL")
+    scrape_parser.add_argument("url")
+    scrape_parser.add_argument("--markdown", action="store_true", default=True)
+    scrape_parser.add_argument("--html", action="store_true")
+    scrape_parser.add_argument("--screenshot", action="store_true")
+    scrape_parser.add_argument("--json", action="store_true")
+    scrape_parser.add_argument("--only-main", action="store_true", default=True)
+
+    crawl_parser = subparsers.add_parser("crawl", help="Firecrawl crawl site")
+    crawl_parser.add_argument("url")
+    crawl_parser.add_argument("--max-pages", type=int, default=50)
+    crawl_parser.add_argument("--wait", action="store_true")
+    crawl_parser.add_argument("--json", action="store_true")
+    crawl_parser.add_argument("--poll-seconds", type=int, default=2)
+
+    search_scrape = subparsers.add_parser(
+        "search-scrape",
+        help="Cari dengan duckse lalu scrape top URL via Firecrawl",
+    )
+    search_scrape.add_argument("query")
+    search_scrape.add_argument("--type", dest="search_type", choices=["text", "news"], default="text")
+    search_scrape.add_argument("--max-results", type=int, default=10)
+    search_scrape.add_argument("--scrape-limit", type=int, default=5)
+    search_scrape.add_argument("--region", default="us-en")
+    search_scrape.add_argument("--timelimit", choices=["d", "w", "m", "y"])
+    search_scrape.add_argument("--backend", default="auto")
+    search_scrape.add_argument("--markdown", action="store_true", default=True)
+    search_scrape.add_argument("--html", action="store_true")
+    search_scrape.add_argument("--screenshot", action="store_true")
+    search_scrape.add_argument("--json", action="store_true")
+
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        return int(exc.code)
+
+    try:
+        api_key = _firecrawl_api_key()
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        if args.subcommand == "search":
+            result = firecrawl_search(args.query, args.limit, args.lang, args.country, api_key)
+            if args.json:
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+            else:
+                data = result.get("data", [])
+                for idx, item in enumerate(data, start=1):
+                    print(f"{idx}. {item.get('title', 'N/A')}")
+                    print(f"   URL: {item.get('url', 'N/A')}")
+                    print(f"   Description: {item.get('description', 'N/A')}")
+            return 0
+
+        if args.subcommand == "scrape":
+            formats: list[str] = []
+            if args.markdown:
+                formats.append("markdown")
+            if args.html:
+                formats.append("html")
+            if args.screenshot:
+                formats.append("screenshot")
+            result = firecrawl_scrape(args.url, formats or ["markdown"], args.only_main, api_key)
+            if args.json:
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+            else:
+                data = result.get("data", {})
+                metadata = data.get("metadata", {})
+                print(f"Title: {metadata.get('title', 'N/A')}")
+                print(f"URL: {metadata.get('sourceURL', args.url)}")
+                if "markdown" in data:
+                    print(data["markdown"])
+            return 0
+
+        if args.subcommand == "crawl":
+            result = firecrawl_start_crawl(args.url, args.max_pages, api_key)
+            if not args.wait:
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+                return 0
+
+            job_id = result.get("id")
+            if not isinstance(job_id, str) or not job_id:
+                print(json.dumps(result, indent=2, ensure_ascii=False))
+                return 0
+
+            status = result
+            while status.get("status") not in {"completed", "failed", "cancelled"}:
+                time.sleep(max(1, args.poll_seconds))
+                status = firecrawl_check_crawl(job_id, api_key)
+
+            print(json.dumps(status, indent=2, ensure_ascii=False))
+            return 0
+
+        if args.subcommand == "search-scrape":
+            results = search(
+                query=args.query,
+                search_type=args.search_type,
+                region=args.region,
+                timelimit=args.timelimit,
+                backend=args.backend,
+                max_results=args.max_results,
+            )
+            urls = []
+            for item in results:
+                url = get_result_url(item)
+                if url and url not in urls:
+                    urls.append(url)
+            urls = urls[: args.scrape_limit]
+
+            formats: list[str] = []
+            if args.markdown:
+                formats.append("markdown")
+            if args.html:
+                formats.append("html")
+            if args.screenshot:
+                formats.append("screenshot")
+            formats = formats or ["markdown"]
+
+            scraped = [firecrawl_scrape(url, formats, True, api_key) for url in urls]
+            output = {"query": args.query, "urls": urls, "scraped": scraped}
+            print(json.dumps(output, indent=2, ensure_ascii=False))
+            return 0
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    return 2
+
+
+def run(
+    argv: list[str] | None = None,
+    search_fn: SearchFn = search,
+    firecrawl_run_fn: FirecrawlRunFn = run_firecrawl,
+) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    if argv and argv[0] == "firecrawl":
+        return firecrawl_run_fn(argv[1:])
+
     parser = argparse.ArgumentParser(description="DDGS metasearch CLI")
     parser.add_argument("query", help="Kata kunci pencarian")
     parser.add_argument(
