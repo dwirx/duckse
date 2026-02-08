@@ -5,12 +5,57 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag release (contoh: v0.1.1). Kosong = ambil dari pyproject version.'
+        required: false
+        type: string
+      prerelease:
+        description: 'Tandai release sebagai prerelease'
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
 
 jobs:
-  build-and-release:
+  resolve-version:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.pick.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pick release tag
+        id: pick
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF#refs/tags/}"
+          elif [[ -n "${{ inputs.tag }}" ]]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag="v$(python - <<'PY'
+import tomllib
+from pathlib import Path
+with Path('pyproject.toml').open('rb') as f:
+    data = tomllib.load(f)
+print(data['project']['version'])
+PY
+)"
+          fi
+
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.].*)?$ ]]; then
+            echo "Tag '$tag' tidak valid. Gunakan format vMAJOR.MINOR.PATCH" >&2
+            exit 1
+          fi
+
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: resolve-version
     strategy:
       fail-fast: false
       matrix:
@@ -19,7 +64,7 @@ jobs:
             platform: linux
             archive_ext: tar.gz
             binary_name: duckse
-          - os: macos-13
+          - os: macos-latest
             platform: macos
             archive_ext: tar.gz
             binary_name: duckse
@@ -27,7 +72,6 @@ jobs:
             platform: windows
             archive_ext: zip
             binary_name: duckse.exe
-
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -37,7 +81,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.14'
+          python-version: '3.12'
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v6
@@ -48,15 +92,10 @@ jobs:
       - name: Run tests
         run: uv run pytest -q
 
-      - name: Build binary (Unix)
-        if: runner.os != 'Windows'
+      - name: Build binary
         run: uv run pyinstaller --onefile --name duckse main.py
 
-      - name: Build binary (Windows)
-        if: runner.os == 'Windows'
-        run: uv run pyinstaller --onefile --name duckse main.py
-
-      - name: Prepare archive name
+      - name: Prepare asset name
         shell: bash
         run: |
           arch="x86_64"
@@ -72,9 +111,28 @@ jobs:
         shell: pwsh
         run: Compress-Archive -Path "dist/${{ matrix.binary_name }}" -DestinationPath "$env:ASSET_NAME" -Force
 
-      - name: Upload release asset
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ASSET_NAME }}
+          path: ${{ env.ASSET_NAME }}
+
+  release:
+    needs: [resolve-version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ env.ASSET_NAME }}
+          tag_name: ${{ needs.resolve-version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          files: release-assets/*
           generate_release_notes: true
+          prerelease: ${{ github.event_name == 'workflow_dispatch' && inputs.prerelease || false }}
           overwrite_files: true

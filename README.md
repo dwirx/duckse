@@ -13,7 +13,7 @@
 
 ## Prasyarat
 
-- Python `>= 3.14` (sesuai `pyproject.toml`)
+- Python `>= 3.10` (sesuai `pyproject.toml`)
 - [`uv`](https://docs.astral.sh/uv/)
 
 ## Instalasi
@@ -176,6 +176,11 @@ Rilis dibuat otomatis saat push tag dengan prefix `v`, contoh:
 git tag v0.1.0
 git push origin v0.1.0
 ```
+
+Atau jalankan manual dari tab **Actions** (`workflow_dispatch`):
+
+- isi `tag` (contoh `v0.1.1`), atau kosongkan untuk ambil `version` dari `pyproject.toml`
+- set `prerelease=true` jika ingin rilis pre-release
 
 Asset release yang dihasilkan:
 - `duckse-linux-x86_64.tar.gz`
