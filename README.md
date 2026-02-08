@@ -1,26 +1,132 @@
 # ducksearch
 
-CLI sederhana untuk mencari hasil web memakai `ddgs`.
+`ducksearch` adalah CLI metasearch berbasis [`ddgs`](https://pypi.org/project/ddgs/) untuk mencari `text`, `images`, `videos`, `news`, dan `books` dari beberapa backend.
 
-## Setup
+## Fitur Utama
+
+- Satu CLI untuk 5 tipe pencarian: `text`, `images`, `videos`, `news`, `books`
+- Output default yang rapi untuk dibaca manusia
+- Mode JSON mentah dengan `--json`
+- Opsi URL final (setelah redirect) dengan `--expand-url`
+- Auto-intent Indonesia: query seperti `"beritakan di indonesia hari ini"` otomatis diarahkan ke `news` + `region id-id` + `timelimit d`
+- Build single binary `duckse`
+
+## Prasyarat
+
+- Python `>= 3.14` (sesuai `pyproject.toml`)
+- [`uv`](https://docs.astral.sh/uv/)
+
+## Instalasi
 
 ```bash
 uv sync
 ```
 
-## Menjalankan
+Untuk tooling dev (mis. PyInstaller):
+
+```bash
+uv sync --all-groups
+```
+
+## Penggunaan Dasar
+
+Text search (default):
 
 ```bash
 uv run python main.py "open source ai"
 ```
 
-Batasi jumlah hasil:
+Berita Indonesia hari ini (auto-intent):
 
 ```bash
-uv run python main.py "open source ai" --max-results 3
+uv run python main.py "beritakan di indonesia hari ini" --max-results 5
 ```
 
-Output berupa JSON list, contoh field umum: `title`, `href`, `body`.
+Output JSON mentah:
+
+```bash
+uv run python main.py "beritakan di indonesia hari ini" --json
+```
+
+## Tipe Search dan Backend
+
+- `text`: `bing, brave, duckduckgo, google, grokipedia, mojeek, yandex, yahoo, wikipedia, auto`
+- `images`: `duckduckgo, auto`
+- `videos`: `duckduckgo, auto`
+- `news`: `bing, duckduckgo, yahoo, auto`
+- `books`: `annasarchive, auto`
+
+## Opsi CLI
+
+Opsi umum:
+
+- `--type`: `text|images|videos|news|books`
+- `--region`: contoh `us-en`, `id-id`
+- `--safesearch`: `on|moderate|off`
+- `--timelimit`: `d|w|m|y`
+- `--max-results`: jumlah hasil
+- `--page`: halaman
+- `--backend`: backend tunggal atau dipisah koma
+- `--expand-url`: tampilkan URL final hasil redirect
+- `--json`: output JSON mentah
+- `--proxy`: proxy `http/https/socks5`
+- `--timeout`: timeout request (detik, default `5`)
+- `--verify`: `true`, `false`, atau path file PEM
+
+Khusus images:
+
+- `--size`, `--color`, `--type-image`, `--layout`, `--license-image`
+
+Khusus videos:
+
+- `--resolution`, `--duration`, `--license-videos`
+
+## Validasi Otomatis
+
+CLI akan menolak kombinasi opsi yang tidak sesuai:
+
+- `images/videos` hanya backend `duckduckgo` atau `auto`
+- `news` backend: `bing|duckduckgo|yahoo|auto`
+- `books` backend: `annasarchive|auto`
+- `timelimit=y` valid untuk `text/images`, tidak valid untuk `news/videos`
+
+Contoh error validasi:
+
+```bash
+uv run python main.py "butterfly" --type images --backend bing
+```
+
+## Contoh Lanjutan
+
+Image search:
+
+```bash
+uv run python main.py "butterfly" --type images --color Monochrome --layout Wide --max-results 10
+```
+
+Video search:
+
+```bash
+uv run python main.py "cars" --type videos --resolution high --duration medium --timelimit w
+```
+
+Books search:
+
+```bash
+uv run python main.py "sea wolf jack london" --type books --backend annasarchive
+```
+
+Berita Indonesia + URL final:
+
+```bash
+uv run python main.py "beritakan di indonesia hari ini" --expand-url --max-results 5
+```
+
+Pakai proxy:
+
+```bash
+uv run python main.py "berita indonesia" --type news --proxy socks5://127.0.0.1:9150 --timeout 10
+```
 
 ## Testing
 
@@ -30,24 +136,19 @@ uv run pytest -q
 
 ## Build Single Binary (`duckse`)
 
-Install dev tools:
-
-```bash
-uv sync --all-groups
-```
-
-Build binary:
+Build:
 
 ```bash
 make build-binary
 ```
 
-Hasil:
+Output:
+
 - `dist/duckse` (Linux/macOS)
 - `dist/duckse.exe` (Windows, jika build di Windows)
 
-Contoh pakai:
+Contoh pakai binary:
 
 ```bash
-./dist/duckse "open source ai" --max-results 3
+./dist/duckse "open source ai" --type text --max-results 3
 ```
