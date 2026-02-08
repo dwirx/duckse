@@ -76,6 +76,24 @@ Jika perintah `duckse` belum dikenali setelah install script, tambahkan path ins
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
+### Referensi Cepat `duckse`
+
+Format umum:
+
+```bash
+duckse "<query>" [opsi]
+```
+
+Contoh cepat:
+
+```bash
+duckse "beritakan di indonesia hari ini" --max-results 5
+duckse "beritakan di indonesia hari ini" --json
+duckse "beritakan di indonesia hari ini" --expand-url --max-results 5
+duckse "butterfly" --type images --max-results 10
+duckse "sea wolf jack london" --type books --backend annasarchive
+```
+
 ### Penggunaan Development (`uv`)
 
 Text search (default):
@@ -104,6 +122,42 @@ uv run python main.py "beritakan di indonesia hari ini" --json
 - `news`: `bing, duckduckgo, yahoo, auto`
 - `books`: `annasarchive, auto`
 
+### Cara Pakai per Tipe Search
+
+`text` (backend: `bing, brave, duckduckgo, google, grokipedia, mojeek, yandex, yahoo, wikipedia, auto`)
+
+```bash
+duckse "open source ai" --type text --backend google --max-results 5
+```
+
+`images` (backend: `duckduckgo, auto`)
+
+```bash
+duckse "butterfly" --type images --backend duckduckgo --color Monochrome --max-results 10
+```
+
+`videos` (backend: `duckduckgo, auto`)
+
+```bash
+duckse "cars" --type videos --backend duckduckgo --resolution high --duration medium
+```
+
+`news` (backend: `bing, duckduckgo, yahoo, auto`)
+
+```bash
+duckse "berita indonesia hari ini" --type news --backend bing --timelimit d --max-results 5
+```
+
+`books` (backend: `annasarchive, auto`)
+
+```bash
+duckse "sea wolf jack london" --type books --backend annasarchive --max-results 5
+```
+
+Catatan:
+- Jika tidak mengisi `--type`, default adalah `text`.
+- Query natural seperti `beritakan di indonesia hari ini` akan otomatis diarahkan ke `news` + `region id-id` + `timelimit d`.
+
 ## Opsi CLI
 
 Opsi umum:
@@ -129,6 +183,12 @@ Khusus videos:
 
 - `--resolution`, `--duration`, `--license-videos`
 
+Contoh kombinasi opsi umum:
+
+```bash
+duckse "ai regulation" --type news --region us-en --timelimit d --backend bing --max-results 5
+```
+
 ## Validasi Otomatis
 
 CLI akan menolak kombinasi opsi yang tidak sesuai:
@@ -141,7 +201,7 @@ CLI akan menolak kombinasi opsi yang tidak sesuai:
 Contoh error validasi:
 
 ```bash
-uv run python main.py "butterfly" --type images --backend bing
+duckse "butterfly" --type images --backend bing
 ```
 
 ## Contoh Lanjutan
